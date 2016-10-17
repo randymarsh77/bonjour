@@ -114,7 +114,7 @@ public class Bonjour {
 	}
 }
 
-private func StringFromDomain(_ domain: Domain) -> String
+internal func StringFromDomain(_ domain: Domain) -> String
 {
 	switch domain {
 	case .AnyDomain:
@@ -126,7 +126,7 @@ private func StringFromDomain(_ domain: Domain) -> String
 	}
 }
 
-private func StringFromProtocol(_ proto: ServiceProtocol) -> String
+internal func StringFromProtocol(_ proto: ServiceProtocol) -> String
 {
 	switch proto {
 	case .TCP:
@@ -136,7 +136,7 @@ private func StringFromProtocol(_ proto: ServiceProtocol) -> String
 	}
 }
 
-private func StringFromType(_ type: ServiceType) -> String
+internal func StringFromType(_ type: ServiceType) -> String
 {
 	switch type {
 	case .Unregistered(let v):
@@ -144,14 +144,14 @@ private func StringFromType(_ type: ServiceType) -> String
 	}
 }
 
-private func BuildServiceString(_ type: ServiceType, _ proto: ServiceProtocol)-> String
+internal func BuildServiceString(_ type: ServiceType, _ proto: ServiceProtocol)-> String
 {
-	return String(format: "%s.%s", StringFromType(type), StringFromProtocol(proto))
+	return String(format: "%@.%@", StringFromType(type), StringFromProtocol(proto))
 }
 
-private typealias OnSearchCompleted = (_ onSearchCompleted: [NetService]) -> ()
+internal typealias OnSearchCompleted = (_ onSearchCompleted: [NetService]) -> ()
 
-private class BrowserDelegate : NSObject, NetServiceBrowserDelegate
+internal class BrowserDelegate : NSObject, NetServiceBrowserDelegate
 {
 	var onSearchCompleted: OnSearchCompleted
 	var servicesFound: [NetService] = []
