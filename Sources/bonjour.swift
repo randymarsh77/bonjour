@@ -24,18 +24,34 @@ public enum Domain
 
 public struct BroadcastSettings
 {
-	public var Name: String
-	public var ServiceType: ServiceType
-	public var ServiceProtocol: ServiceProtocol
-	public var Domain: Domain
-	public var Port: Int32
+	public var name: String
+	public var serviceType: ServiceType
+	public var serviceProtocol: ServiceProtocol
+	public var domain: Domain
+	public var port: Int32
+
+	public init(name: String, serviceType: ServiceType, serviceProtocol: ServiceProtocol, domain: Domain, port: Int32)
+	{
+		self.name = name
+		self.serviceType = serviceType
+		self.serviceProtocol = serviceProtocol
+		self.domain = domain
+		self.port = port
+	}
 }
 
 public struct QuerySettings
 {
-	public var ServiceType: ServiceType
-	public var ServiceProtocol: ServiceProtocol
-	public var Domain: Domain
+	public var serviceType: ServiceType
+	public var serviceProtocol: ServiceProtocol
+	public var domain: Domain
+
+	public init(serviceType: ServiceType, serviceProtocol: ServiceProtocol, domain: Domain)
+	{
+		self.serviceType = serviceType
+		self.serviceProtocol = serviceProtocol
+		self.domain = domain
+	}
 }
 
 public class Bonjour {
@@ -43,10 +59,10 @@ public class Bonjour {
 	public static func Broadcast(_ settings: BroadcastSettings) -> Scope
 	{
 		let service = NetService(
-			domain: StringFromDomain(settings.Domain),
-			type: BuildServiceString(settings.ServiceType, settings.ServiceProtocol),
-			name: settings.Name,
-			port: settings.Port)
+			domain: StringFromDomain(settings.domain),
+			type: BuildServiceString(settings.serviceType, settings.serviceProtocol),
+			name: settings.name,
+			port: settings.port)
 
 		service.publish()
 
@@ -59,10 +75,10 @@ public class Bonjour {
 	{
 		return async { (task: Task<[NetService]>) -> [NetService] in
 			let ps = Promise<NetServiceBrowser, [NetService]> { (browser) in
-				await(task: FindAll(browser, settings))
+				await(FindAll(browser, settings))
 			}
 			let pa = ps.then { _ in
-				Async.Wake(task: task)
+				Async.Wake(task)
 			}
 
 			DispatchQueue.main.async {
@@ -84,13 +100,13 @@ public class Bonjour {
 			let delegate = BrowserDelegate { (services: [NetService]) in
 				browser.stop()
 				result = services
-				Async.Wake(task: task)
+				Async.Wake(task)
 			}
 
 			browser.delegate = delegate
 			browser.searchForServices(
-				ofType: BuildServiceString(settings.ServiceType, settings.ServiceProtocol),
-				inDomain: StringFromDomain(settings.Domain))
+				ofType: BuildServiceString(settings.serviceType, settings.serviceProtocol),
+				inDomain: StringFromDomain(settings.domain))
 
 			Async.Suspend()
 			return result
