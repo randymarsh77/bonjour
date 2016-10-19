@@ -54,7 +54,9 @@ public struct QuerySettings
 	}
 }
 
-public class Bonjour {
+public class Bonjour
+{
+	private static var Q: DispatchQueue = DispatchQueue(label: "Bonjour")
 
 	public static func Broadcast(_ settings: BroadcastSettings) -> Scope
 	{
@@ -81,11 +83,15 @@ public class Bonjour {
 				Async.Wake(task)
 			}
 
-			DispatchQueue.main.async {
+			Q.async {
+				var keepRunning = true
 				let browser = NetServiceBrowser()
+				browser.schedule(in: RunLoop.current, forMode: .defaultRunLoopMode)
 				DispatchQueue.global(qos: .default).async {
 					pa.resolve(browser)
+					keepRunning = false
 				}
+				PulseRunLoop { keepRunning }
 			}
 
 			Async.Suspend()
@@ -110,6 +116,14 @@ public class Bonjour {
 
 			Async.Suspend()
 			return result
+		}
+	}
+
+	private static func PulseRunLoop(keepRunning: @escaping () -> Bool)
+	{
+		Q.async {
+			RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+			if (keepRunning()) { PulseRunLoop(keepRunning: keepRunning) }
 		}
 	}
 }
@@ -153,7 +167,7 @@ internal typealias OnSearchCompleted = (_ onSearchCompleted: [NetService]) -> ()
 
 internal class BrowserDelegate : NSObject, NetServiceBrowserDelegate
 {
-	var onSearchCompleted: OnSearchCompleted
+	var onSearchCompleted: OnSearchCompleted?
 	var servicesFound: [NetService] = []
 
 	public init(onSearchCompleted: @escaping OnSearchCompleted)
@@ -163,11 +177,16 @@ internal class BrowserDelegate : NSObject, NetServiceBrowserDelegate
 
 	public func netServiceBrowserDidStopSearch(_ browser: NetServiceBrowser)
 	{
-		self.onSearchCompleted(self.servicesFound)
+		self.onSearchCompleted?(self.servicesFound)
 	}
 
 	public func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool)
 	{
 		self.servicesFound.append(service)
+		if (!moreComing) {
+			let callback = self.onSearchCompleted!
+			self.onSearchCompleted = nil
+			callback(self.servicesFound)
+		}
 	}
 }
