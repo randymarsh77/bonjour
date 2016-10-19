@@ -24,16 +24,8 @@ let qSettings = QuerySettings(
 	domain: .AnyDomain
 )
 
-var keepRunning = true
 let broadcastScope = Bonjour.Broadcast(bSettings)
-DispatchQueue.global(qos: .default).async {
-	let services = await(Bonjour.FindAll(qSettings))
-	DispatchQueue.main.async {
-		print("Found %d services", services.count)
-		broadcastScope.dispose()
-		keepRunning = false
-	}
-}
-
-while (keepRunning) { RunLoop.current.run(until: Date(timeIntervalSinceNow: 1)) }
+let services = await(Bonjour.FindAll(qSettings))
+print("Found %d services", services.count)
+broadcastScope.dispose()
 ```
