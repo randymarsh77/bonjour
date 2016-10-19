@@ -5,8 +5,9 @@ Convenience task-based API around `NetServices`.
 
 ```
 import Foundation
-import Bonjour
 import Async
+import Bonjour
+import Using
 
 let serviceType: ServiceType = .Unregistered(identifier: "_myService")
 
@@ -24,8 +25,8 @@ let qSettings = QuerySettings(
 	domain: .AnyDomain
 )
 
-let broadcastScope = Bonjour.Broadcast(bSettings)
-let services = await(Bonjour.FindAll(qSettings))
-print("Found %d services", services.count)
-broadcastScope.dispose()
+using (Bonjour.Broadcast(bSettings)) {
+	let services = await(Bonjour.FindAll(qSettings))
+	print("Found \(services.count) service\(services.count == 1 ? "" : "s")")
+}
 ```
