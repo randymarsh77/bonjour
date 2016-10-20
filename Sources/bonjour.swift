@@ -1,7 +1,6 @@
 import Foundation
 import Async
 import IDisposable
-import Promise
 import Scope
 
 public enum ServiceProtocol
@@ -76,26 +75,21 @@ public class Bonjour
 	public static func FindAll(_ settings: QuerySettings) -> Task<[NetService]>
 	{
 		return async { (task: Task<[NetService]>) -> [NetService] in
-			let ps = Promise<NetServiceBrowser, [NetService]> { (browser) in
-				await(FindAll(browser, settings))
-			}
-			let pa = ps.then { _ in
-				Async.Wake(task)
-			}
-
+			var result: [NetService]? = nil
 			Q.async {
 				var keepRunning = true
 				let browser = NetServiceBrowser()
 				browser.schedule(in: RunLoop.current, forMode: .defaultRunLoopMode)
 				DispatchQueue.global(qos: .default).async {
-					pa.resolve(browser)
-					keepRunning = false
+					result = await(FindAll(browser, settings))
+					Q.async { keepRunning = false }
+					Async.Wake(task)
 				}
 				PulseRunLoop { keepRunning }
 			}
 
 			Async.Suspend()
-			return ps.value!
+			return result!
 		}
 	}
 
@@ -105,6 +99,7 @@ public class Bonjour
 			var result: [NetService] = []
 			let delegate = BrowserDelegate { (services: [NetService]) in
 				browser.stop()
+				browser.remove(from: RunLoop.current, forMode: .defaultRunLoopMode)
 				result = services
 				Async.Wake(task)
 			}
@@ -122,8 +117,10 @@ public class Bonjour
 	private static func PulseRunLoop(keepRunning: @escaping () -> Bool)
 	{
 		Q.async {
-			RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-			if (keepRunning()) { PulseRunLoop(keepRunning: keepRunning) }
+			if (keepRunning()) {
+				RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+				PulseRunLoop(keepRunning: keepRunning)
+			}
 		}
 	}
 }
