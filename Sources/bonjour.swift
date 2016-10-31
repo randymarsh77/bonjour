@@ -93,6 +93,23 @@ public class Bonjour
 		}
 	}
 
+	public static func Resolve(_ service: NetService) -> Task<Void>
+	{
+		return async { (task: Task<Void>) -> () in
+			Q.async {
+				var keepRunning = true
+				service.schedule(in: RunLoop.current, forMode: .defaultRunLoopMode)
+				DispatchQueue.global(qos: .default).async {
+					await(DoResolve(service))
+					Q.async { keepRunning = false }
+					Async.Wake(task)
+				}
+				PulseRunLoop { keepRunning }
+			}
+			Async.Suspend()
+		}
+	}
+
 	private static func FindAll(_ browser: NetServiceBrowser, _ settings: QuerySettings) -> Task<[NetService]>
 	{
 		return async { (task: Task<[NetService]>) -> [NetService] in
@@ -111,6 +128,21 @@ public class Bonjour
 
 			Async.Suspend()
 			return result
+		}
+	}
+
+	private static func DoResolve(_ service: NetService) -> Task<Void>
+	{
+		return async { (task: Task<Void>) -> () in
+			let delegate = ServiceDelegate {
+				service.remove(from: RunLoop.current, forMode: .defaultRunLoopMode)
+				Async.Wake(task)
+			}
+
+			service.delegate = delegate
+			service.resolve(withTimeout: 0.0)
+
+			Async.Suspend()
 		}
 	}
 
@@ -185,5 +217,27 @@ internal class BrowserDelegate : NSObject, NetServiceBrowserDelegate
 			self.onSearchCompleted = nil
 			callback(self.servicesFound)
 		}
+	}
+}
+
+internal typealias OnResolveCompleted = () -> ()
+
+internal class ServiceDelegate : NSObject, NetServiceDelegate
+{
+	var onResolveCompleted: OnResolveCompleted?
+
+	public init(onResolveCompleted: @escaping OnResolveCompleted)
+	{
+		self.onResolveCompleted = onResolveCompleted
+	}
+
+	func netServiceDidResolveAddress(_ sender: NetService)
+	{
+		sender.stop()
+	}
+
+	func netServiceDidStop(_ sender: NetService)
+	{
+		self.onResolveCompleted?()
 	}
 }
