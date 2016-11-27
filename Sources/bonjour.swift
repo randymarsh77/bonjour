@@ -148,14 +148,10 @@ public class Bonjour
 	private static func DoResolve(_ service: NetService) -> Task<Void>
 	{
 		return async { (task: Task<Void>) -> () in
-			let delegate = ServiceDelegate {
+			ServiceResolver.Resolve(service) {
 				service.remove(from: RunLoop.current, forMode: .defaultRunLoopMode)
 				Async.Wake(task)
 			}
-
-			service.delegate = delegate
-			service.resolve(withTimeout: 0.0)
-
 			Async.Suspend()
 		}
 	}
@@ -236,22 +232,73 @@ internal class BrowserDelegate : NSObject, NetServiceBrowserDelegate
 
 internal typealias OnResolveCompleted = () -> ()
 
-internal class ServiceDelegate : NSObject, NetServiceDelegate
+internal class ServiceResolver : NSObject, NetServiceDelegate
 {
-	var onResolveCompleted: OnResolveCompleted?
+	private var _service: NetService
+	private var _onResolveCompleted: OnResolveCompleted?
+	private var _resolved = false
+	private var _strongRef: ServiceResolver?
 
-	public init(onResolveCompleted: @escaping OnResolveCompleted)
+	public static func Resolve(_ service: NetService, _ onResolveCompleted: @escaping OnResolveCompleted)
 	{
-		self.onResolveCompleted = onResolveCompleted
+		let resolver = ServiceResolver(service, onResolveCompleted)
+		service.delegate = resolver
+		resolver._strongRef = resolver
+		resolver.beginResolution()
+	}
+
+	private init(_ service: NetService, _ onResolveCompleted: @escaping OnResolveCompleted)
+	{
+		_service = service
+		_onResolveCompleted = onResolveCompleted
 	}
 
 	func netServiceDidResolveAddress(_ sender: NetService)
 	{
+		_resolved = true
 		sender.stop()
+	}
+
+	func netServiceWillResolve(_ sender: NetService)
+	{
+	}
+
+	func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber])
+	{
+		print ("error resolving: \(errorDict), assuming timeout")
 	}
 
 	func netServiceDidStop(_ sender: NetService)
 	{
-		self.onResolveCompleted?()
+		completeResolution()
+	}
+
+	private func beginResolution()
+	{
+		if (_service.addresses?.first != nil) {
+			_resolved = true
+			completeResolution()
+			return
+		}
+
+		DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 0.3) {
+			if (!self._resolved) {
+				self._service.stop()
+			}
+		}
+
+		_service.delegate = self
+		_service.resolve(withTimeout: 0.2)
+	}
+
+	private func completeResolution()
+	{
+		if (_resolved) {
+			_onResolveCompleted?()
+			_onResolveCompleted = nil
+			_strongRef = nil
+		} else {
+			beginResolution()
+		}
 	}
 }
