@@ -55,7 +55,21 @@ public struct QuerySettings
 
 public class Bonjour
 {
-	private static var Q: DispatchQueue = DispatchQueue(label: "Bonjour")
+	private static var Q: DispatchQueue = InitializeQueue()
+
+	private static func InitializeQueue() -> DispatchQueue
+	{
+		let qLabel = "Bonjour"
+		var q: DispatchQueue? = nil
+		if (Thread.isMainThread) {
+			q = DispatchQueue(label: qLabel)
+		} else {
+			DispatchQueue.main.sync {
+				q = DispatchQueue(label: qLabel)
+			}
+		}
+		return q!
+	}
 
 	public static func Broadcast(_ settings: BroadcastSettings) -> Scope
 	{
