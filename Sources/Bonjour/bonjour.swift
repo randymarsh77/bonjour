@@ -93,7 +93,7 @@ public class Bonjour
 			Q.async {
 				var keepRunning = true
 				let browser = NetServiceBrowser()
-				browser.schedule(in: RunLoop.current, forMode: .defaultRunLoopMode)
+				browser.schedule(in: RunLoop.current, forMode: RunLoop.Mode.default)
 				DispatchQueue.global(qos: .default).async {
 					result = await(FindAll(browser, settings))
 					Q.async { keepRunning = false }
@@ -112,7 +112,7 @@ public class Bonjour
 		return async { (task: Task<Void>) -> () in
 			Q.async {
 				var keepRunning = true
-				service.schedule(in: RunLoop.current, forMode: .defaultRunLoopMode)
+				service.schedule(in: RunLoop.current, forMode: RunLoop.Mode.default)
 				DispatchQueue.global(qos: .default).async {
 					await(DoResolve(service))
 					Q.async { keepRunning = false }
@@ -130,7 +130,7 @@ public class Bonjour
 			var result: [NetService] = []
 			let delegate = BrowserDelegate { (services: [NetService]) in
 				browser.stop()
-				browser.remove(from: RunLoop.current, forMode: .defaultRunLoopMode)
+				browser.remove(from: RunLoop.current, forMode: RunLoop.Mode.default)
 				result = services
 				Async.Wake(task)
 			}
@@ -149,7 +149,7 @@ public class Bonjour
 	{
 		return async { (task: Task<Void>) -> () in
 			ServiceResolver.Resolve(service) {
-				service.remove(from: RunLoop.current, forMode: .defaultRunLoopMode)
+				service.remove(from: RunLoop.current, forMode: RunLoop.Mode.default)
 				Async.Wake(task)
 			}
 			Async.Suspend()
